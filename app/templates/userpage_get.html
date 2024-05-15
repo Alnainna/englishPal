@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=3.0, user-scalable=yes"/>
+    <meta name="format-detection" content="telephone=no"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+
+    {{ yml['header'] | safe }}
+    {% if yml['css']['item'] %}
+        {% for css in yml['css']['item'] %}
+            <link href="{{ css }}" rel="stylesheet">
+        {% endfor %}
+    {% endif %}
+    {% if yml['js']['head'] %}
+        {% for js in yml['js']['head'] %}
+            <script src="{{ js }}"></script>
+        {% endfor %}
+    {% endif %}
+
+    <title>EnglishPal Study Room for {{ username }}</title>
+
+    <style>
+      .shaking {
+          animation: shakes 1600ms ease-in-out;
+      }
+
+      @keyframes shakes {
+          10%, 90% { transform: translate3d(-1px, 0, 0); }
+          20%, 50% { transform: translate3d(+2px, 0, 0); }
+          30%, 70% { transform: translate3d(-4px, 0, 0); }
+          40%, 60% { transform: translate3d(+4px, 0, 0); }
+          50% { transform: translate3d(-4px, 0, 0); }
+      }
+
+      .lead{
+          font-size: 22px;
+          font-family: Helvetica, sans-serif;
+          white-space: pre-wrap;
+      }
+
+      .arrow {
+	  padding: 0;
+	  font-size: 20px;
+	  line-height: 21px;
+	  display: inline-block;
+      }
+
+      .arrow:hover {
+	  cursor: pointer;
+      }
+
+    </style>
+</head>
+<body>
+<div class="container-fluid">
+    <p><b>English Pal for <font id="username" color="red">{{ username }}</font></b>
+
+        {% if username ==  admin_name %}
+        <a class="btn btn-secondary" href="/admin" role="button" onclick="stopRead()">管理</a>
+        {% endif %}
+        <a id="quit" class="btn btn-secondary" href="/logout" role="button" onclick="stopRead()">退出</a>
+        <a class="btn btn-secondary" href="/reset" role="button" onclick="stopRead()">重设密码</a>
+
+    </p>
+    {% for message in get_flashed_messages() %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+	{{ message }}
+	<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+
+        <button class="arrow" id="load_next_article" onclick="load_next_article();Reader.stopRead()" title="下一篇 Next Article">⇨</button>
+        <button class="arrow" id="load_pre_article" onclick="load_pre_article();Reader.stopRead()" style="display: none" title="上一篇 Previous Article">⇦</button>
+
+    <p><b>阅读文章并回答问题</b></p>
+    <div id="text-content">
+        <div id="found">
+            <div class="alert alert-success" role="alert">According to your word list, your level is <span class="text-decoration-underline" id="user_level">{{ today_article["user_level"] }}</span>  and we have chosen an article with a difficulty level of <span class="text-decoration-underline" id="text_level">{{ today_article["text_level"] }}</span> for you.</div>
+                <p class="text-muted" id="date">Article added on: {{ today_article["date"] }}</p><br/>
+            <div class="p-3 mb-2 bg-light text-dark" style="margin: 0 0.5%;"><br/>
+            <p class="display-6" id="article_title">{{ today_article["article_title"] }}</p><br/>
+            <p class="lead"><font id="article">{{ today_article["article_body"] }}</font></p><br/>
+            <div>
+                <p><small class="text-muted" id="source">{{ today_article['source'] }}</small></p><br/>
+            </div>
+
+            <p><b id="question">{{ today_article['question'] }}</b></p><br/>
+                <script type="text/javascript">
+                    function toggle_visibility(id) { {# https://css-tricks.com/snippets/javascript/showhide-element/#}
+                        const e = document.getElementById(id);
+                        if(e.style.display === 'block')
+                            e.style.display = 'none';
+                        else
+                            e.style.display = 'block';
+                    }
+                </script>
+                <button onclick="toggle_visibility('answer');">ANSWER</button>
+                <div id="answer" style="display:none;">{{ today_article['answer'] }}</div><br/>
+            </div>
+        </div>
+        <div class="alert alert-success" role="alert" id="not_found" style="display:none;">
+            <p class="text-muted"><span class="badge bg-success">Notes:</span><br>No article is currently available for you. You can try again a few times or mark new words in the passage to improve your level.</p>
+        </div>
+        <div class="alert alert-success" role="alert" id="read_all" style="display:none;">
+            <p class="text-muted"><span class="badge bg-success">Notes:</span><br>You've read all the articles.</p>
+        </div>
+    </div>
+
+    <input type="checkbox" id="highlightCheckbox" onclick="toggleHighlighting()" />生词高亮
+    <input type="checkbox" id="readCheckbox" onclick="onReadClick()" />大声朗读
+    <input type="checkbox" id="chooseCheckbox" onclick="onChooseClick()" />划词入库
+    <div class="range">
+        <div class="field">
+            <div class="sliderValue">
+                <span id="rangeValue">1×</span>
+            </div>
+            <input type="range" id="rangeComponent" min="0.5" max="2" value="1" step="0.25" />
+        </div>
+    </div>
+    <p><b>收集生词吧</b> （可以在正文中划词，也可以复制黏贴）</p>
+    <form method="post" action="/{{ username }}/userpage">
+        <textarea name="content" id="selected-words" rows="10" cols="120"></textarea><br/>
+        <button class="btn btn-primary btn-lg" type="submit" onclick="Reader.stopRead()">把生词加入我的生词库</button>
+        <button class="btn btn-primary btn-lg" type="reset"  onclick="clearSelectedWords()">清除</button>
+    </form>
+    {% if session.get['thisWord'] %}
+        <script type="text/javascript">
+            //point to the anchor in the page whose id is aaa if it exists
+            window.onload = function () {
+                var element = document.getElementsByName("aaa");
+                if (element != null)
+                    document.getElementsByName("aaa")[0].scrollIntoView(true);
+            }
+        </script>
+    {% endif %}
+
+    {% if d_len > 0 %}
+        <p>
+            <b>我的生词簿</b>
+            <label for="move_dynamiclly">
+                <input type="checkbox" name="move_dynamiclly" id="move_dynamiclly" checked>
+                允许动态调整顺序
+            </label>
+        </p>
+        <a name="aaa"></a>
+        <div class="word-container">
+            {% for x in lst3 %}
+                {% set word = x[0] %}
+                {% set freq = x[1] %}
+                {% if session.get('thisWord') == x[0] and session.get('time') == 1 %}
+                {% endif %}
+                <p id='p_{{ word }}' class="new-word" >
+                    <a id="word_{{ word }}"  class="btn btn-light" href='http://youdao.com/w/eng/{{ word }}/#keyfrom=dict2.index'
+                    role="button">{{ word }}</a>
+                    ( <a id="freq_{{ word }}" title="{{ word }}">{{ freq }}</a> )
+                    <a class="btn btn-success" onclick="familiar('{{ word }}')" role="button">熟悉</a>
+                    <a class="btn btn-warning" onclick="unfamiliar('{{ word }}')" role="button">不熟悉</a>
+                    <a class="btn btn-danger" onclick="delete_word('{{ word }}')" role="button">删除</a>
+                    <a class="btn btn-info" onclick="read_word('{{ word }}')" role="button">朗读</a>
+                </p>
+            {% endfor %}
+        </div>
+        <input id="selected-words2" type="hidden" value="{{ words }}">
+    {% endif %}
+</div>
+{{ yml['footer'] | safe }}
+{% if yml['js']['bottom'] %}
+    {% for js in yml['js']['bottom'] %}
+        <script src="{{ js }}"></script>
+    {% endfor %}
+{% endif %}
+<script type="text/javascript">
+    window.onload = function () { // 页面加载时执行
+        const settings = {
+            // initialize settings from localStorage
+            highlightChecked: localStorage.getItem('highlightChecked') !== 'false', // localStorage stores strings, default to true. same below
+            readChecked: localStorage.getItem('readChecked') !== 'false',
+            chooseChecked: localStorage.getItem('chooseChecked') !== 'false',
+            rangeValue: localStorage.getItem('rangeValue') || '1',
+            selectedWords: localStorage.getItem('selectedWords') || ''
+        };
+
+        const elements = {
+            highlightCheckbox: document.querySelector('#highlightCheckbox'),
+            readCheckbox: document.querySelector('#readCheckbox'),
+            chooseCheckbox: document.querySelector('#chooseCheckbox'),
+            rangeComponent: document.querySelector('#rangeComponent'),
+            rangeValueDisplay: document.querySelector('#rangeValue'),
+            selectedWordsInput: document.querySelector('#selected-words')
+        };
+        // 应用设置到页面元素
+        elements.highlightCheckbox.checked = settings.highlightChecked;
+        elements.readCheckbox.checked = settings.readChecked;
+        elements.chooseCheckbox.checked = settings.chooseChecked;
+        elements.rangeComponent.value = settings.rangeValue;
+        elements.rangeValueDisplay.textContent = `${settings.rangeValue}x`;
+        elements.selectedWordsInput.value = settings.selectedWords;
+
+        // 刷新页面或进入页面时判断，若不是首篇文章，则上一篇按钮可见
+        if (sessionStorage.getItem('pre_page_button') !== 'display' && sessionStorage.getItem('pre_page_button')) {
+            $('#load_pre_article').show();
+        }
+
+        // 事件监听器
+        elements.selectedWordsInput.addEventListener('input', () => {
+            localStorage.setItem('selectedWords', elements.selectedWordsInput.value);
+        });
+
+        elements.rangeComponent.addEventListener('input', () => {
+            const rangeValue = elements.rangeComponent.value;
+            elements.rangeValueDisplay.textContent = `${rangeValue}x`;
+            localStorage.setItem('rangeValue', rangeValue);
+        });
+    };
+
+    function clearSelectedWords() {
+        localStorage.removeItem('selectedWords');
+        document.querySelector('#selected-words').value = '';
+    }
+
+
+    function load_next_article(){
+        $.ajax({
+            url: '/get_next_article/{{username}}',
+            dataType: 'json',
+            success: function(data) {
+                // 更新页面内容
+                if(data['today_article']){
+                    update(data['today_article']);
+                    check_pre(data['visited_articles']);
+                    check_next(data['result_of_generate_article']);
+                }
+            }
+        });
+    }
+    function load_pre_article(){
+        $.ajax({
+            url: '/get_pre_article/{{username}}',
+            dataType: 'json',
+            success: function(data) {
+                // 更新页面内容
+                if(data['today_article']){
+                    update(data['today_article']);
+                    check_pre(data['visited_articles']);
+                }
+            }
+        });
+    }
+    function update(today_article){
+        $('#user_level').html(today_article['user_level']);
+        $('#text_level').html(today_article["text_level"]);
+        $('#date').html('Article added on: '+today_article["date"]);
+        $('#article_title').html(today_article["article_title"]);
+        $('#article').html(today_article["article_body"]);
+        $('#source').html(today_article['source']);
+        $('#question').html(today_article["question"]);
+        $('#answer').html(today_article["answer"]);
+        document.querySelector('#text_level').classList.add('mark'); // highlight text difficult level for 2 seconds
+        setTimeout(() => {document.querySelector('#text_level').classList.remove('mark');}, 2000);
+        document.querySelector('#user_level').classList.add('mark'); // do the same thing for user difficulty level
+        setTimeout(() => {document.querySelector('#user_level').classList.remove('mark');}, 2000);
+    }
+<!-- 检查是否存在上一篇或下一篇，不存在则对应按钮隐藏-->
+    function check_pre(visited_articles){
+        if((visited_articles=='')||(visited_articles['index']<=0)){
+            $('#load_pre_article').hide();
+            sessionStorage.setItem('pre_page_button', 'display')
+        }else{
+            $('#load_pre_article').show();
+            sessionStorage.setItem('pre_page_button', 'show')
+        }
+    }
+    function check_next(result_of_generate_article){
+        if(result_of_generate_article == "found"){
+            $('#found').show();$('#not_found').hide();
+            $('#read_all').hide();
+        }else if(result_of_generate_article == "not found"){
+            $('#found').hide();
+            $('#not_found').show();
+            $('#read_all').hide();
+        }else{
+            $('#found').hide();
+            $('#not_found').hide();
+            $('#read_all').show();
+        }
+    }
+</script>
+</body>
+<style>
+    mark {
+        color: #{{ yml['highlight']['color'] }};
+        background-color: rgba(0, 0, 0, 0);
+    }
+</style>
+
+</html>

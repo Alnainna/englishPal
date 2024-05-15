@@ -1,0 +1,5 @@
+{% block body %}
+{% if not session['logged_in'] %}
+    <p>请先<a href="/login">登录</a></p>
+{% endif %}
+{% endblock %}

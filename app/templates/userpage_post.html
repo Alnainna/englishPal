@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+       <meta charset="UTF-8">
+       <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=3.0, user-scalable=yes" />
+       <meta name="format-detection" content="telephone=no" />
+
+       {{ yml['header'] | safe }}
+       {% if yml['css']['item'] %}
+         {% for css in yml['css']['item'] %}
+         <link href="{{ css }}" rel="stylesheet">
+         {% endfor %}
+        {% endif %}
+        {% if yml['js']['head'] %}
+         {% for js in yml['js']['head'] %}
+         <script src="{{ js }}" ></script>
+         {% endfor %}
+        {% endif %}
+
+       <title>EnglishPal Study Room for {{username}}</title>
+    </head>
+    <body>
+      <div class="container-fluid">
+          <p class="mt-md-3">
+               <input type="button" id="btn-cancel-selection" value="取消勾选" onclick="toggleCheckboxSelection(false)" />
+               <input type="button" id="btn-selection" value="全部勾选" onclick="toggleCheckboxSelection(true)" />
+          </p>
+          <form method="post" action="/{{username}}/mark">
+              <button type="submit" name="add-btn" class="btn btn-outline-primary btn-lg" onclick="clearSelectedWords()">加入我的生词簿</button>
+              {% for x in lst %}
+              {% set word = x[0]%}
+              <p>
+                    <font color="grey">{{loop.index}}</font>
+                    :
+                    <a href='http://youdao.com/w/eng/{{word}}/#keyfrom=dict2.index' title={{word}}>{{word}}</a>
+                    ({{x[1]}})
+                    <input type="checkbox" name="marked" value="{{word}}" checked>
+              </p>
+
+               {% endfor %}
+           </form>
+           {{ yml['footer'] | safe }}
+           {% if yml['js']['bottom'] %}
+            {% for js in yml['js']['bottom'] %}
+             <script src="{{ js }}" ></script>
+            {% endfor %}
+        {% endif %}
+      </div>
+    </body>
+</html>
